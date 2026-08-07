@@ -1,0 +1,6 @@
+# AMANI-SAHIB Deployment Guide
+how to deploy 
+// go to panel startup scroll down to star up command 
+// first and change the npm start with this to install pm2 
+// add this npm install --legacy-peer-deps 
+after that change back to npm start and the bot will start running 
