@@ -52,7 +52,7 @@ class SettingsStore:
         self.store.save(data)
 
 
-@dataclass(slots=True)
+@dataclass
 class PairingSession:
     jid: str
     path: Path
@@ -145,3 +145,5 @@ class SessionManager:
 admins_store = JsonStore(settings.root / "data" / "admins.json", settings.developer_ids)
 settings_store = SettingsStore()
 sessions = SessionManager()
+# This file is excluded from Git; it stores the credentials of the linked Green API instance.
+green_api_store = JsonStore(settings.root / "sessions" / "green_api.json", {})

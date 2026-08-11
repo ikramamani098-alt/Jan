@@ -4,7 +4,14 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover - optional for import-only checks
+    load_dotenv = None
+
 ROOT = Path(__file__).resolve().parents[1]
+if load_dotenv is not None:
+    load_dotenv(ROOT / ".env")
 
 
 def _csv(value: str, default: list[str]) -> list[str]:
@@ -13,7 +20,7 @@ def _csv(value: str, default: list[str]) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
-@dataclass(slots=True)
+@dataclass
 class Settings:
     """Runtime configuration loaded from environment variables.
 
@@ -58,7 +65,10 @@ class Settings:
     auto_presence: bool = os.getenv("AUTO_PRESENCE", "false").lower() == "true"
     auto_read: bool = os.getenv("AUTO_READ", "false").lower() == "true"
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
-    neonize_device_name: str = os.getenv("NEONIZE_DEVICE_NAME", "jan-main-python")
+    green_api_url: str = os.getenv("GREEN_API_URL", "https://api.green-api.com")
+    green_api_instance_id: str = os.getenv("GREEN_API_INSTANCE_ID", "")
+    green_api_token: str = os.getenv("GREEN_API_TOKEN", "")
+    green_api_receive_timeout: int = int(os.getenv("GREEN_API_RECEIVE_TIMEOUT", "5"))
 
     def ensure_directories(self) -> None:
         self.pairing_root.mkdir(parents=True, exist_ok=True)

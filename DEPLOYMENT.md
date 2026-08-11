@@ -1,45 +1,34 @@
-# راهنمای رفع خطای استقرار Python 3.9
+# راهنمای استقرار Python 3.9
 
-## علت خطا
+## وضعیت نسخهٔ فعلی
 
-وابستگی `neonize` فقط با Python 3.10 یا جدیدتر سازگار است. اگر در لاگ استقرار این خط را می‌بینید، پلتفرم هنوز از image قدیمی استفاده می‌کند:
-
-```dockerfile
-FROM python:3.9-slim
-```
-
-این خط از پیکربندی پلتفرم می‌آید؛ نه از `requirements.txt` پروژه. در نتیجه، تغییر نسخهٔ Neonize یا اجرای مجدد build با Python 3.9 مشکل را حل نمی‌کند.
-
-## تنظیم لازم در پلتفرم
-
-یکی از گزینه‌های زیر را انجام دهید:
-
-1. اگر پلتفرم گزینهٔ **Dockerfile** دارد، حالت Build/Deploy را روی `Dockerfile` قرار دهید. Dockerfile این مخزن از `python:3.11-slim` استفاده می‌کند.
-2. اگر پلتفرم انتخاب **Runtime / Python version** دارد، آن را به `3.11` یا حداقل `3.10` تغییر دهید.
-3. اگر پلتفرم یک Dockerfile ثابت نشان می‌دهد، خط اول آن را به این مقدار تغییر دهید:
-
-   ```dockerfile
-   FROM python:3.11-slim
-   ```
-
-4. اگر پلتفرم از Nixpacks استفاده می‌کند، فایل `nixpacks.toml` در مخزن به‌طور خودکار Python 3.11 را درخواست می‌کند.
-5. اگر پلتفرم از Buildpack استفاده می‌کند، فایل‌های `runtime.txt` و `.python-version` در مخزن Python 3.11 را مشخص می‌کنند.
-
-پس از تغییر، گزینهٔ **Clear build cache / Rebuild without cache** را بزنید و deploy را دوباره شروع کنید.
-
-## بررسی موفقیت
-
-ابتدای لاگ جدید باید چیزی شبیه به این باشد:
+نسخهٔ فعلی پروژه دیگر از `neonize` استفاده نمی‌کند. به همین دلیل روی Python 3.9 اجرا می‌شود و خطای زیر نباید دوباره ظاهر شود:
 
 ```text
-FROM python:3.11-slim
+No matching distribution found for neonize
 ```
 
-یا باید نصب Neonize را بدون پیام `Requires-Python >=3.10` ادامه دهد.
+اتصال واتس‌اپ از طریق Green API انجام می‌شود. این روش به browser، Selenium، Playwright یا Docker سفارشی روی هاست نیاز ندارد.
 
-## دستور محلی Docker
+## GSM Telegram Bot Hosting
+
+1. مخزن GitHub را Clone کنید.
+2. در بخش **Select Python file to run**، `main.py` را انتخاب کنید.
+3. ربات را اجرا کنید.
+4. متغیر `BOT_TOKEN` را در تنظیمات محرمانهٔ پلتفرم تنظیم کنید؛ اگر پلتفرم این امکان را ندارد، توکن را در GitHub عمومی قرار ندهید.
+5. بعد از شروع ربات، در چت خصوصی Telegram، فرمان `/green <instance_id> <api_token>` را بفرستید.
+6. QR فرستاده‌شده توسط ربات را در WhatsApp → Linked Devices اسکن کنید.
+
+## اگر خطای قبلی باقی ماند
+
+باید cache build را پاک کنید و مخزن را دوباره Clone کنید. لاگ نصب نباید نام `neonize` را نمایش دهد. اگر همچنان `neonize` دیده می‌شود، اپ شما از commit قدیمی استفاده می‌کند یا clone دوباره انجام نشده است.
+
+## اجرای محلی
 
 ```bash
-docker build --no-cache -t jan-main-python .
-docker run --rm -p 8080:8080 --env-file .env jan-main-python
+pip install -r requirements.txt
+export BOT_TOKEN="your_telegram_token"
+python main.py
 ```
+
+برای اتصال واتس‌اپ، شناسه و token Green API را از طریق Telegram با فرمان `/green` وارد کنید؛ این داده‌ها در GitHub ذخیره نمی‌شوند.

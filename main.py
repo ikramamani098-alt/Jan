@@ -8,10 +8,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
-from app.commands import BotState, install_router
 from app.config import settings
-from app.moderation import Moderation
-from app.whatsapp import WhatsAppClientAdapter
 from bot import TelegramPairingBot
 
 logging.basicConfig(
@@ -42,22 +39,6 @@ def start_health_server() -> ThreadingHTTPServer:
     return server
 
 
-async def run_whatsapp() -> None:
-    try:
-        client = WhatsAppClientAdapter()
-        state = BotState()
-        await install_router(client)
-        client.add_handler(Moderation(client, state).handle)
-        result = await asyncio.to_thread(client.connect)
-        if asyncio.iscoroutine(result):
-            await result
-        log.info("WhatsApp transport started")
-        await client.idle()
-    except (RuntimeError, OSError, ImportError) as exc:
-        log.error("WhatsApp transport unavailable: %s", exc)
-        log.info("The Telegram/health services can continue without WhatsApp.")
-
-
 async def run_telegram() -> None:
     if not settings.telegram_token:
         log.warning("BOT_TOKEN is empty; Telegram service is disabled.")
@@ -85,7 +66,7 @@ async def main() -> None:
         except (NotImplementedError, RuntimeError):
             pass
 
-    tasks = [asyncio.create_task(run_whatsapp(), name="whatsapp")]
+    tasks = []
     if settings.telegram_token:
         tasks.append(asyncio.create_task(run_telegram(), name="telegram"))
     try:

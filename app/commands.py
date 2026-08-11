@@ -13,7 +13,7 @@ from .whatsapp import IncomingMessage, WhatsAppClientAdapter
 log = logging.getLogger(__name__)
 
 
-@dataclass(slots=True)
+@dataclass
 class BotState:
     started_at: float = field(default_factory=time.monotonic)
     flags: dict[str, bool] = field(
@@ -169,7 +169,7 @@ class CommandRouter:
         settings_store.set(message.chat, name, self.state.flags[name])
 
     async def _cmd_admincheck(self, message: IncomingMessage, _args: list[str]) -> None:
-        await message.reply("ℹ️ بررسی مدیر در نسخهٔ Python به اطلاعات گروه Neonize وابسته است و در این نشست فعال می‌شود.")
+        await message.reply("ℹ️ بررسی مدیر گروه در اتصال Green API به سطح دسترسی و داده‌های گروه وابسته است.")
 
     async def _cmd_broadcast(self, message: IncomingMessage, args: list[str]) -> None:
         if not args:

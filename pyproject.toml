@@ -6,11 +6,10 @@ build-backend = "setuptools.build_meta"
 name = "jan-main-python"
 version = "1.0.0"
 description = "Python port of the Jan-main WhatsApp and Telegram bot"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 dependencies = [
-  "neonize>=0.4.3.post0",
   "python-telegram-bot>=21.0,<23",
-  "httpx>=0.27",
+  "httpx>=0.27,<0.29",
   "python-dotenv>=1.0",
 ]
 
@@ -19,4 +18,8 @@ pythonpath = ["."]
 testpaths = ["tests"]
 
 [tool.ruff]
+target-version = "py39"
 line-length = 120
+
+[tool.ruff.lint]
+ignore = ["UP037", "UP045", "ASYNC230"]

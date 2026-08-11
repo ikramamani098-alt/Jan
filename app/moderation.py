@@ -7,7 +7,7 @@ from .commands import BotState
 from .whatsapp import IncomingMessage, WhatsAppClientAdapter
 
 
-@dataclass(slots=True)
+@dataclass
 class Moderation:
     client: WhatsAppClientAdapter
     state: BotState

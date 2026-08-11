@@ -1,91 +1,68 @@
-# Jan Main Python Port
+# Jan Main Python Bot
 
-این پروژه نسخهٔ Python پروژهٔ `Jan-main` است. ساختار اصلی ربات، شامل سرویس سلامت، ربات تلگرام، مدیریت نشست‌ها، جفت‌سازی واتس‌اپ، فرمان‌های اصلی و کنترل‌های پایهٔ گروهی، به ماژول‌های جداگانه منتقل شده است.
+این پروژه نسخهٔ Python ربات Jan است و برای اجرا روی هاست‌های محدود به **Python 3.9** آماده شده است. اتصال واتس‌اپ اکنون از طریق **Green API** انجام می‌شود؛ بنابراین پروژه به Neonize، Node.js، Chrome یا Python 3.10 نیاز ندارد.
 
-> **نکتهٔ معماری:** کتابخانهٔ اصلی پروژهٔ قبلی یعنی Baileys مخصوص Node.js است. در این نسخه، لایهٔ اتصال واتس‌اپ با Neonize جایگزین شده است. مستندات Neonize API رویدادمحور، `NewClient`، رویدادهای اتصال و پیام، و ارسال پیام را ارائه می‌کند [1]. نسخهٔ منتشرشدهٔ بررسی‌شده در PyPI، `0.4.3.post0` و نیازمند Python 3.10 یا بالاتر است [2].
+> Green API یک instance متصل به حساب واتس‌اپ را مدیریت می‌کند. ربات با HTTP polling پیام‌های ورودی را دریافت و با همان حساب واتس‌اپ پاسخ می‌دهد. مستندات رسمی API، دریافت QR، ارسال پیام و دریافت notification از queue را پوشش می‌دهد [1] [2] [3].
 
 ## ساختار پروژه
 
 | مسیر | نقش |
 |---|---|
-| `main.py` | نقطهٔ ورود، سرور سلامت و راه‌اندازی هم‌زمان سرویس‌ها |
-| `app/config.py` | پیکربندی محیطی و مسیرها |
-| `app/storage.py` | ذخیره‌سازی JSON، نشست‌ها و کد جفت‌سازی |
-| `app/whatsapp.py` | آداپتر Neonize و مدل پیام نرمال‌شده |
-| `app/commands.py` | مسیریابی فرمان‌ها و فرمان‌های اصلی |
-| `app/moderation.py` | کنترل لینک و واژه‌های نامناسب |
-| `bot.py` | فرمان‌های `/start`، `/pair` و `/unpair` |
-| `data/` | داده‌های JSON و پایگاه دادهٔ منتقل‌شده |
-| `media/` | فایل‌های رسانه‌ای پروژهٔ اصلی |
-| `sessions/` | نشست‌های واتس‌اپ |
+| `main.py` | نقطهٔ ورود و سرور سلامت |
+| `bot.py` | ربات تلگرام و فرمان‌های اتصال Green API |
+| `app/whatsapp.py` | آداپتر Green API برای ارسال، دریافت و polling پیام‌های واتس‌اپ |
+| `app/commands.py` | فرمان‌های اصلی واتس‌اپ |
+| `app/moderation.py` | کنترل ضدلینک و واژه‌های نامناسب |
+| `app/storage.py` | ذخیره‌سازی JSON و اطلاعات اتصال محلی |
+| `.env.example` | قالب متغیرهای محیطی |
+| `DEPLOYMENT.md` | راهنمای استقرار |
 
-## نصب
+## استقرار روی GSM Telegram Bot Hosting
 
-ابتدا Python 3.10 یا بالاتر را نصب کنید. سپس در پوشهٔ پروژه اجرا کنید:
+در همان صفحه‌ای که تصویرش را فرستادید، `main.py` را انتخاب کنید و سپس **Watch Ad / Run Selected File** را بزنید. وابستگی‌های runtime اکنون با Python 3.9 سازگارند و دیگر `neonize` نصب نمی‌شود.
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-cp .env.example .env
-```
+برای اجرای Telegram باید متغیر `BOT_TOKEN` را به‌صورت خصوصی در تنظیمات پلتفرم قرار دهید. اگر پلتفرم متغیر محیطی ندارد، این هاست برای نگه‌داشتن امن توکن مناسب نیست؛ توکن را هرگز در GitHub عمومی قرار ندهید.
 
-در فایل `.env` مقدار `BOT_TOKEN` را وارد کنید. توکن تلگرام قبلی عمداً در نسخهٔ Python قرار داده نشده است؛ توکن را فقط در محیط اجرا یا فایل `.env` خصوصی تنظیم کنید.
+## اتصال واقعی واتس‌اپ
 
-## اجرا
-
-```bash
-source .venv/bin/activate
-python main.py
-```
-
-برای بررسی سلامت سرویس، آدرس زیر را باز کنید:
+ابتدا در [Green API Console](https://console.green-api.com/) یک instance بسازید. پس از آماده‌شدن instance، `Instance ID` و `API Token Instance` را بردارید. سپس در چت خصوصی ربات تلگرام خود بفرستید:
 
 ```text
-http://127.0.0.1:8080/
+/green <instance_id> <api_token>
 ```
 
-اگر `BOT_TOKEN` خالی باشد، سرویس تلگرام اجرا نمی‌شود؛ سرور سلامت و تلاش برای راه‌اندازی واتس‌اپ همچنان انجام می‌شود. برای استفادهٔ واتس‌اپ، Neonize باید به‌درستی نصب شود و اولین اتصال ممکن است به QR/device-login نیاز داشته باشد.
-
-## اجرا با Docker
-
-این پروژه به **Python 3.10 یا بالاتر** نیاز دارد، زیرا وابستگی `neonize` از Python 3.9 پشتیبانی نمی‌کند. `Dockerfile` موجود در پروژه از `python:3.11-slim` استفاده می‌کند.
-
-```bash
-docker build -t jan-main-python .
-docker run --rm -p 8080:8080 --env-file .env jan-main-python
-```
-
-اگر پلتفرم استقرار شما Dockerfile اختصاصی دارد، خط اول آن را از `FROM python:3.9-slim` به `FROM python:3.11-slim` یا نسخهٔ جدیدتر تغییر دهید. اگر لاگ همچنان `FROM python:3.9-slim` را نشان می‌دهد، پلتفرم Dockerfile مخزن را نادیده می‌گیرد؛ راهنمای دقیق را در [DEPLOYMENT.md](DEPLOYMENT.md) دنبال کنید.
-
-## جفت‌سازی واتس‌اپ
-
-در تلگرام، ابتدا در کانال‌های تعیین‌شده عضو شوید و سپس بفرستید:
+این فرمان فقط برای شناسه‌های `DEVELOPER_IDS` مجاز است. ربات QR را به همان چت Telegram می‌فرستد. در گوشی خود باز کنید:
 
 ```text
-/pair 937xxxxxxxxx
+WhatsApp → Linked devices → Link a device
 ```
 
-Baileys در پروژهٔ اصلی متد مستقیم `requestPairingCode` داشت. Neonize بسته به نسخه و محیط اجرا ممکن است به‌جای کد متنی، ورود QR/device-login ارائه کند. آداپتر Python این تفاوت را پنهان نمی‌کند و در صورت نبودن متد کد، پیام روشنی دربارهٔ اسکن QR در محیط اجرا نشان می‌دهد. این محدودیت به تفاوت API دو کتابخانه مربوط است، نه خطای فرمان Telegram.
+و QR را اسکن کنید. بعد از اتصال، هر پیام متنی واتس‌اپ با پیشوندهایی مانند `.`, `!`, `/` یا `#` به ربات می‌رسد؛ برای نمونه `.ping` یا `.menu` را در واتس‌اپ ارسال کنید.
 
-برای حذف نشست:
+برای گرفتن دوباره QR، در چت Telegram این فرمان را بفرستید:
 
 ```text
-/unpair 937xxxxxxxxx
+/pair
 ```
 
-## فرمان‌های اصلی منتقل‌شده
+برای متوقف‌کردن polling محلی:
 
-فرمان‌های پایه شامل `ping`، `alive`، `menu`، `runtime`، `owner`، `id`، `settings`، `on`، `off`، `antilink`، `antibadword`، `antibot`، `antidelete`، `autoreply`، `autoread`، `autotyping`، `autorecording`، `autoviewstatus`، `autolikestatus`، `autobio` و `admincheck` است. ساختار `CommandRouter` طوری نوشته شده است که فرمان‌های رسانه‌ای و APIمحور بعدی را بدون تغییر در اتصال واتس‌اپ اضافه کنید.
+```text
+/unpair
+```
 
-## تفاوت‌های مهم با نسخهٔ Node.js
+فایل حاوی شناسه و token Green API در `sessions/green_api.json` ذخیره می‌شود و طبق `.gitignore` در GitHub ثبت نمی‌گردد.
 
-نسخهٔ اصلی بیش از صد فرمان متکی به scraping، دانلود رسانه، APIهای بیرونی و متدهای خصوصی Baileys داشت. این قابلیت‌ها را نمی‌توان فقط با ترجمهٔ نحوی JavaScript به Python حفظ کرد؛ برای هر مورد باید یک جایگزین Python یا API رسمی تنظیم شود. بنابراین نسخهٔ حاضر هستهٔ اجرایی و فرمان‌های پایدار را منتقل کرده و قابلیت‌های Node-only را به‌صورت آداپتر و نقطهٔ توسعه جدا کرده است.
+## فرمان‌های اصلی واتس‌اپ
 
-همچنین در نسخهٔ Python، توکن‌ها و شناسه‌های حساس از کد خارج شده‌اند. قبل از استقرار عمومی، مقدارهای `.env`، مجوزهای نشست‌ها و دسترسی کانال‌های Telegram را بررسی کنید.
+فرمان‌های پایه شامل `ping`، `alive`، `menu`، `runtime`، `owner`، `id`، `settings`، `on`، `off`، `antilink`، `antibadword`، `antibot`، `antidelete`، `autoreply`، `autoread`، `autotyping`، `autorecording`، `autoviewstatus`، `autolikestatus`، `autobio` و `admincheck` است.
+
+## نکات مهم
+
+Green API یک سرویس مستقل از این پروژه است و برای اتصال باید instance خود را در Console آن ایجاد کنید. QR یا token را در گروه Telegram یا GitHub عمومی نفرستید. همچنین استفاده از اتوماسیون واتس‌اپ باید با قوانین سرویس و حساب شما سازگار باشد.
 
 ## منابع
 
-[1]: https://github.com/krypton-byte/neonize "Neonize official GitHub repository"
-[2]: https://pypi.org/project/neonize/ "Neonize package on PyPI"
+[1]: https://green-api.com/en/docs/api/account/QR/ "Green API — دریافت QR"
+[2]: https://green-api.com/en/docs/api/sending/SendMessage/ "Green API — ارسال پیام"
+[3]: https://green-api.com/en/docs/api/receiving/technology-http-api/ReceiveNotification/ "Green API — دریافت notification"
