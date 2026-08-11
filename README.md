@@ -57,7 +57,7 @@ docker build -t jan-main-python .
 docker run --rm -p 8080:8080 --env-file .env jan-main-python
 ```
 
-اگر پلتفرم استقرار شما Dockerfile اختصاصی دارد، خط اول آن را از `FROM python:3.9-slim` به `FROM python:3.11-slim` یا نسخهٔ جدیدتر تغییر دهید.
+اگر پلتفرم استقرار شما Dockerfile اختصاصی دارد، خط اول آن را از `FROM python:3.9-slim` به `FROM python:3.11-slim` یا نسخهٔ جدیدتر تغییر دهید. اگر لاگ همچنان `FROM python:3.9-slim` را نشان می‌دهد، پلتفرم Dockerfile مخزن را نادیده می‌گیرد؛ راهنمای دقیق را در [DEPLOYMENT.md](DEPLOYMENT.md) دنبال کنید.
 
 ## جفت‌سازی واتس‌اپ
 
