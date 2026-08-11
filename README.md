@@ -1,74 +1,82 @@
-# Jan Main Python Bot
+# All-amani Python Bot
 
-این پروژه نسخهٔ Python ربات Jan است و برای اجرا روی هاست‌های محدود به **Python 3.9** آماده شده است. اتصال واتس‌اپ اکنون از طریق **Green API** انجام می‌شود؛ بنابراین پروژه به Neonize، Node.js، Chrome یا Python 3.10 نیاز ندارد.
+این پروژه نسخهٔ Python پروژهٔ `All-amani-main` است. تمام **۳۳ فایل JavaScript** پروژه دارای معادل Python هستند؛ مهم‌ترین فایل‌ها از این قرارند:
 
-> Green API یک instance متصل به حساب واتس‌اپ را مدیریت می‌کند. ربات با HTTP polling پیام‌های ورودی را دریافت و با همان حساب واتس‌اپ پاسخ می‌دهد. مستندات رسمی API، دریافت QR، ارسال پیام و دریافت notification از queue را پوشش می‌دهد [1] [2] [3].
-
-## ساختار پروژه
-
-| مسیر | نقش |
+| JavaScript اصلی | معادل Python |
 |---|---|
-| `main.py` | نقطهٔ ورود و سرور سلامت |
-| `bot.py` | ربات تلگرام و فرمان‌های اتصال Green API |
-| `app/whatsapp.py` | آداپتر Green API برای ارسال، دریافت و polling پیام‌های واتس‌اپ |
-| `app/commands.py` | فرمان‌های اصلی واتس‌اپ |
-| `app/moderation.py` | کنترل ضدلینک و واژه‌های نامناسب |
-| `app/storage.py` | ذخیره‌سازی JSON و اطلاعات اتصال محلی |
-| `.env.example` | قالب متغیرهای محیطی |
-| `DEPLOYMENT.md` | راهنمای استقرار |
+| `index.js` | `index.py` و `main.py` |
+| `bot.js` | `bot.py` |
+| `pair.js` | `pair.py` |
+| `autoload.js` | `autoload.py` |
+| `drenox.js` | `drenox.py` و `app/commands.py` |
+| `setting/config.js` | `setting/config.py` و `app/config.py` |
+| `utils.js` | `utils.py` و `app/utils.py` |
+| `token.js` | `token_config.py`؛ بدون نگه‌داری توکن واقعی |
+| `allfunc/*.js` | `allfunc/*.py` |
+| `commands/*.js` و `handlers/*.js` | معادل‌های Python همان مسیرها |
 
-## استقرار روی GSM Telegram Bot Hosting
+## تغییر مهم در اتصال واتس‌اپ
 
-در همان صفحه‌ای که تصویرش را فرستادید، `main.py` را انتخاب کنید و سپس **Watch Ad / Run Selected File** را بزنید. وابستگی‌های runtime اکنون با Python 3.9 سازگارند و دیگر `neonize` نصب نمی‌شود.
+نسخهٔ Node.js به Baileys و Node 18 وابسته بود. در نسخهٔ Python، برای اینکه پروژه روی هاست دارای **Python 3.9** هم نصب شود، اتصال واتس‌اپ با Green API انجام می‌شود. این مسیر از endpoint رسمی `getAuthorizationCode` برای کد جفت‌سازی شماره‌ای استفاده می‌کند و نیازمند نصب Neonize، Node.js یا QR محلی نیست.
 
-برای اجرای Telegram باید متغیر `BOT_TOKEN` را به‌صورت خصوصی در تنظیمات پلتفرم قرار دهید. اگر پلتفرم متغیر محیطی ندارد، این هاست برای نگه‌داشتن امن توکن مناسب نیست؛ توکن را هرگز در GitHub عمومی قرار ندهید.
+> توجه: یک Green API instance فقط یک حساب واتس‌اپ را هم‌زمان مدیریت می‌کند. برای چند حساب مستقل باید برای هر حساب instance جداگانه یا یک gateway چندنشسته روی هاست مناسب تهیه شود.
 
-## اتصال واقعی واتس‌اپ با کد جفت‌سازی
+## نصب
 
-ابتدا در [Green API Console](https://console.green-api.com/) یک instance بسازید. پس از آماده‌شدن instance، `Instance ID` و `API Token Instance` را بردارید. سپس در چت خصوصی ربات تلگرام خود بفرستید:
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+```
+
+توکن Telegram را فقط در متغیر محیطی یا بخش Secrets پنل استقرار قرار دهید:
+
+```text
+BOT_TOKEN=توکن_ربات_تلگرام
+DEVELOPER_IDS=8764900501
+```
+
+توکن واقعی پروژهٔ قدیمی عمداً وارد این نسخه نشده است؛ اگر آن توکن قبلاً عمومی شده، آن را در BotFather لغو و توکن تازه بسازید.
+
+## اجرای پروژه
+
+```bash
+python main.py
+```
+
+در اپ GSM Telegram Bot Hosting، فایل `main.py` را انتخاب کنید. وابستگی‌های `requirements.txt` با Python 3.9 سازگارند و دیگر `neonize` یا پکیج‌های Node.js را نصب نمی‌کنند.
+
+## اتصال با کد جفت‌سازی
+
+ابتدا در [Green API Console](https://console.green-api.com/) یک instance بسازید. سپس مالک ربات در چت خصوصی Telegram این فرمان را وارد کند:
 
 ```text
 /green <instance_id> <api_token>
 ```
 
-این فرمان فقط برای شناسه‌های `DEVELOPER_IDS` مجاز است. سپس شمارهٔ واتس‌اپ خود را با کد کشور، بدون `+` و فقط با رقم بفرستید:
+بعد برای دریافت کد شماره‌ای:
 
 ```text
 /pair 937xxxxxxxxx
 ```
 
-ربات **کد واقعی جفت‌سازی** را مستقیم در Telegram می‌فرستد. در گوشی خود باز کنید:
+یا کافی است `/start` بزنید و شماره را در پیام بعدی بفرستید. ربات کد واقعی را فقط برای همان چت Telegram می‌فرستد. در WhatsApp بروید:
 
 ```text
-WhatsApp → Linked devices → Link a device → Link with phone number instead
+Linked devices → Link a device → Link with phone number instead
 ```
 
-و همان کد را وارد کنید. کد معمولاً ۸ کاراکتر دارد و حدود ۲ تا ۳ دقیقه اعتبار دارد. بعد از اتصال، هر پیام متنی واتس‌اپ با پیشوندهایی مانند `.`, `!`, `/` یا `#` به ربات می‌رسد؛ برای نمونه `.ping` یا `.menu` را در واتس‌اپ ارسال کنید.
+و کد را وارد کنید. کد معمولاً ۸ کاراکتر دارد و زمان اعتبار محدودی دارد.
 
-برای گرفتن کد جدید، دوباره این فرمان را بفرستید:
+## فرمان‌های واتس‌اپ
 
-```text
-/pair 937xxxxxxxxx
-```
+فرمان‌های اصلی مانند `.ping`، `.menu`، `.runtime`، `.owner`، `.id`، `.calc`، `.settings`، `.on`، `.off`، `.antilink`، `.antibadword`، `.autoreply`، `.autoread` و `broadcast` پیاده‌سازی شده‌اند. تمام ۶۴۴ نام فرمان استخراج‌شده از `drenox.js` در `legacy_command_names.txt` ثبت شده‌اند؛ فرمان‌هایی که به scraper یا API اختصاصی Node.js نیاز دارند، به‌صورت شفاف پیام سازگاری می‌دهند تا بدون خطای خاموش مشخص باشد کدام سرویس باید جداگانه اضافه شود.
 
-برای متوقف‌کردن polling محلی:
+## امنیت و داده‌ها
 
-```text
-/unpair
-```
-
-فایل حاوی شناسه و token Green API در `sessions/green_api.json` ذخیره می‌شود و طبق `.gitignore` در GitHub ثبت نمی‌گردد.
-
-## فرمان‌های اصلی واتس‌اپ
-
-فرمان‌های پایه شامل `ping`، `alive`، `menu`، `runtime`، `owner`، `id`، `settings`، `on`، `off`، `antilink`، `antibadword`، `antibot`، `antidelete`، `autoreply`، `autoread`، `autotyping`، `autorecording`، `autoviewstatus`، `autolikestatus`، `autobio` و `admincheck` است.
-
-## نکات مهم
-
-Green API یک سرویس مستقل از این پروژه است و برای اتصال باید instance خود را در Console آن ایجاد کنید. QR یا token را در گروه Telegram یا GitHub عمومی نفرستید. همچنین استفاده از اتوماسیون واتس‌اپ باید با قوانین سرویس و حساب شما سازگار باشد.
+فایل `.env`، نشست‌ها، `pairing.json` و tokenهای Green API در `.gitignore` قرار دارند. فایل‌های pairing قدیمی از ZIP به نسخهٔ Python منتقل نشده‌اند تا کد جفت‌سازی یا نشست خصوصی منتشر نشود. رسانه‌ها و داده‌های غیرمحرمانهٔ پروژه در ساختار خود نگه داشته شده‌اند.
 
 ## منابع
 
-[1]: https://green-api.com/en/docs/api/account/QR/ "Green API — دریافت QR"
-[2]: https://green-api.com/en/docs/api/sending/SendMessage/ "Green API — ارسال پیام"
-[3]: https://green-api.com/en/docs/api/receiving/technology-http-api/ReceiveNotification/ "Green API — دریافت notification"
+راهنمای رسمی Green API برای [دریافت کد جفت‌سازی](https://green-api.com/en/docs/api/account/GetAuthorizationCode/) و [اتصال شماره تلفن](https://green-api.com/en/docs/api/recommendations/connecting-a-phone-number-to-the-Green-API/) در دسترس است.

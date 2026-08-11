@@ -40,7 +40,7 @@ class JsonStore:
 
 class SettingsStore:
     def __init__(self, path: Path | None = None) -> None:
-        self.store = JsonStore(path or settings.root / "setting.json", {})
+        self.store = JsonStore(path or settings.database_root / "settings.json", {})
 
     def get(self, jid: str, key: str, default: Any = False) -> Any:
         data = self.store.load()
@@ -142,8 +142,8 @@ class SessionManager:
         return True
 
 
-admins_store = JsonStore(settings.root / "data" / "admins.json", settings.developer_ids)
+admins_store = JsonStore(settings.database_root / "admintele.json", settings.developer_ids)
 settings_store = SettingsStore()
 sessions = SessionManager()
 # This file is excluded from Git; it stores the credentials of the linked Green API instance.
-green_api_store = JsonStore(settings.root / "sessions" / "green_api.json", {})
+green_api_store = JsonStore(settings.root / "kingbadboitimewisher" / "green_api.json", {})

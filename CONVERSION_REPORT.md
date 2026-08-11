@@ -1,41 +1,23 @@
-# گزارش تبدیل Jan-main به Python
+# گزارش تبدیل All-amani-main
 
-## وضعیت فعلی
+## دامنهٔ تبدیل
 
-پروژهٔ اصلی یک ربات Node.js بود. نسخهٔ فعلی Python، لایه‌های Telegram، ذخیره‌سازی، فرمان‌های اصلی، کنترل‌های گروهی و اتصال واتس‌اپ را در فایل‌های جداگانه پیاده‌سازی می‌کند.
+پروژهٔ دریافت‌شده شامل ۳۳ فایل JavaScript، فایل `bot.js`، فایل بزرگ `drenox.js`، وابستگی‌های Node.js، داده‌های JSON و رسانه‌ها بود. برای همهٔ ۳۳ فایل JavaScript یک مسیر Python ساخته شد؛ `bot.js` به‌طور مشخص با نام `bot.py` حفظ شد و حذف نشد.
 
-| بخش نسخهٔ اصلی | معادل Python |
-|---|---|
-| `index.js` | `main.py` |
-| `bot.js` | `bot.py` |
-| `pair.js` و `autoload.js` | `bot.py` و `app/storage.py` |
-| `drenox.js` | `app/whatsapp.py`، `app/commands.py` و `app/moderation.py` |
-| `Settings.js` و `setting/config.js` | `app/config.py` و `app/storage.py` |
+## معماری Python
 
-## تغییر مسیر اتصال واتس‌اپ
+`main.py` جایگزین `index.js` است و health server و سرویس Telegram را اجرا می‌کند. `bot.py` جریان Telegram، بررسی عضویت کانال، `/start`، `/pair`، `/green`، `/unpair` و حالت انتظار شماره را پیاده‌سازی می‌کند. `pair.py` جایگزین `pair.js` است و endpoint کد جفت‌سازی Green API را فراخوانی می‌کند. `drenox.py` و `app/commands.py` لایهٔ handler و command router واتس‌اپ را فراهم می‌کنند.
 
-نسخهٔ قبلی Python از Neonize استفاده می‌کرد؛ اما Neonize به Python 3.10 یا بالاتر نیاز داشت و در هاست GSM Telegram Bot Hosting که Python 3.9 دارد نصب نمی‌شد. در نسخهٔ جدید، آداپتر `app/whatsapp.py` از Green API استفاده می‌کند.
+از ۶۴۴ نام فرمان استخراج‌شده از switch بزرگ `drenox.js`، فرمان‌های اصلی مستقیماً پیاده‌سازی شده‌اند و تمام نام‌ها در `legacy_command_names.txt` ثبت شده‌اند. فرمان‌هایی که به scraper، media converter، API بیرونی یا متدهای خصوصی Baileys وابسته‌اند، پیام شفاف سازگاری می‌دهند و به‌عنوان اجرای خام و دروغین معرفی نمی‌شوند.
 
-Green API امکان دریافت QR، ارسال پیام متنی و دریافت notificationهای ورودی از queue HTTP را ارائه می‌کند. بنابراین ربات به Python 3.9، مرورگر محلی یا Node.js وابسته نیست [1] [2] [3]. برای اتصال، کاربر باید یک instance Green API بسازد و شناسه و API token آن را فقط در چت خصوصی Telegram با فرمان `/green` وارد کند.
+## حل خطای Python 3.9
 
-## قابلیت‌های اجراشده
+وابستگی `neonize` حذف شده است، زیرا روی Python 3.9 نصب نمی‌شود. `requirements.txt` اکنون فقط وابستگی‌های runtime سازگار با Python 3.9 را نصب می‌کند: `httpx`، `python-telegram-bot` و `python-dotenv`. Dockerfile نیز برای Python 3.11 باقی مانده، اما هاست Python 3.9 می‌تواند همین requirements را بدون Neonize نصب کند.
 
-نسخهٔ فعلی شامل اجرای ربات Telegram، فرمان `/green` برای تنظیم instance، فرمان `/pair` برای دریافت QR، فرمان `/unpair` برای متوقف‌کردن polling، دریافت پیام‌های ورودی WhatsApp، ارسال پاسخ، فرمان‌های اصلی و کنترل‌های ضدلینک/ضدواژه است.
+## امنیت
 
-## محدودیت‌ها
+توکن واقعی موجود در `token.js` به `token_config.py` منتقل نشده است. نام `token.py` عمداً استفاده نشد، زیرا با ماژول استاندارد `token` در Python تداخل ایجاد می‌کند. `.env`، نشست‌ها، `pairing.json` و Green API token در Git نادیده گرفته می‌شوند. داده‌های pairing دریافت‌شده از ZIP منتشر نشده‌اند.
 
-فرمان‌های بسیار اختصاصی نسخهٔ JavaScript که به scraping، APIهای خارجی یا متدهای داخلی Baileys متکی بودند، به شکل یک‌به‌یک منتقل نشده‌اند. ساختار `CommandRouter` برای افزودن آن‌ها به‌صورت ماژولار آماده است.
+## اعتبارسنجی
 
-اطلاعات Green API در `sessions/green_api.json` ذخیره می‌شود و از طریق `.gitignore` از GitHub خارج است. توکن Telegram و Green API را در مخزن عمومی ثبت نکنید.
-
-## بررسی‌های انجام‌شده
-
-- `ruff check .` بدون خطا اجرا شد.
-- آزمون‌های آفلاین command/router و Green API اجرا شدند.
-- نصب runtime dependencies بدون Neonize بررسی شد.
-
-## منابع
-
-[1]: https://green-api.com/en/docs/api/account/QR/ "Green API — دریافت QR"
-[2]: https://green-api.com/en/docs/api/sending/SendMessage/ "Green API — ارسال پیام"
-[3]: https://green-api.com/en/docs/api/receiving/technology-http-api/ReceiveNotification/ "Green API — دریافت notification"
+بررسی نگاشت نشان داد هر ۳۳ فایل JavaScript یک معادل Python دارد. پروژه با lint هدف Python 3.9 و آزمون‌های آفلاین بررسی می‌شود. اتصال زنده به Green API برای آزمون نیازمند `Instance ID` و `API Token` واقعی است و بدون این اطلاعات اجرا نمی‌شود.

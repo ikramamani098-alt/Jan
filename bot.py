@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
+import shutil
 from typing import Any, Optional
 
 from app.commands import BotState, install_router
@@ -17,7 +19,7 @@ try:
     from telegram.constants import ChatType
     from telegram.error import TelegramError
     from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
-except ImportError:  # pragma: no cover - depends on deployment environment
+except ImportError:  # pragma: no cover - optional until dependencies are installed
     Application = None  # type: ignore[assignment]
     Update = Any  # type: ignore[misc,assignment]
     ContextTypes = Any  # type: ignore[assignment]
@@ -25,9 +27,18 @@ except ImportError:  # pragma: no cover - depends on deployment environment
     CallbackQueryHandler = CommandHandler = MessageHandler = filters = None  # type: ignore[assignment]
     TelegramError = RuntimeError  # type: ignore[assignment]
 
+PHONE_RE = re.compile(r"^\d{7,15}$")
+BLOCKED_COUNTRY_CODES = {"252", "201"}
+
 
 class PairingService:
-    """Own the single Green API WhatsApp instance used by this bot process."""
+    """Manage the Green API transport used by the converted Baileys pairing flow.
+
+    Green API authorizes one WhatsApp account per instance. A deployment that must
+    host independent accounts for many users needs one Green API instance per user
+    or a separate multi-session gateway; this class never pretends one instance can
+    safely own several accounts.
+    """
 
     def __init__(self) -> None:
         self.client: Optional[WhatsAppClientAdapter] = None
@@ -43,7 +54,7 @@ class PairingService:
             await install_router(self.client)
             self.client.add_handler(Moderation(self.client, state).handle)
             self.client.connect()
-            self.polling_task = asyncio.create_task(self.client.idle(), name="green-api-whatsapp")
+            self.polling_task = asyncio.create_task(self.client.idle(), name="whatsapp-green-api")
             return self.client
 
     async def stop(self) -> None:
@@ -55,12 +66,16 @@ class PairingService:
             await self.client.stop()
             self.client = None
 
+    async def request_code(self, phone_number: str) -> str:
+        client = await self.start()
+        return await client.get_authorization_code(phone_number)
+
     async def autoload(self) -> None:
         if green_api_store.load().get("instance_id") or settings.green_api_instance_id:
             try:
                 await self.start()
             except (RuntimeError, OSError, ValueError):
-                log.exception("Could not start saved Green API WhatsApp instance")
+                log.exception("Could not start saved Green API instance")
 
 
 class TelegramPairingBot:
@@ -68,16 +83,25 @@ class TelegramPairingBot:
         if Application is None:
             raise RuntimeError("python-telegram-bot is not installed")
         if not settings.telegram_token:
-            raise RuntimeError("BOT_TOKEN is empty; set it in the hosting-panel environment before starting Telegram")
+            raise RuntimeError("BOT_TOKEN is empty; set it in the hosting-panel environment")
         self.pairing = pairing or PairingService()
-        self.admin_store = JsonStore(settings.root / "data" / "admins.json", settings.developer_ids)
+        self.user_states: dict[int, str] = {}
+        self.admin_store = JsonStore(settings.root / "kingbadboitimewisher" / "admin.json", settings.developer_ids)
+        self.admin_ids = self._load_admin_ids()
         self.application = Application.builder().token(settings.telegram_token).build()
         self._register_handlers()
 
+    def _load_admin_ids(self) -> list[str]:
+        value = self.admin_store.load()
+        if not isinstance(value, list) or not value:
+            value = settings.developer_ids
+            self.admin_store.save(value)
+        return [str(item) for item in value]
+
     def _register_handlers(self) -> None:
         self.application.add_handler(CommandHandler("start", self.start_command))
-        self.application.add_handler(CommandHandler("green", self.green_command))
         self.application.add_handler(CommandHandler("pair", self.pair_command))
+        self.application.add_handler(CommandHandler("green", self.green_command))
         self.application.add_handler(CommandHandler("unpair", self.unpair_command))
         self.application.add_handler(CallbackQueryHandler(self.callback_query))
         self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.text_message))
@@ -89,7 +113,7 @@ class TelegramPairingBot:
 
     def is_owner(self, update: Update) -> bool:
         user_id = str(update.effective_user.id) if update.effective_user else ""
-        return user_id in {str(value) for value in settings.developer_ids}
+        return user_id in set(self.admin_ids) or user_id in {str(item) for item in settings.developer_ids}
 
     async def check_user_joined_channels(self, user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
         for channel in settings.required_channels:
@@ -102,33 +126,55 @@ class TelegramPairingBot:
         return True
 
     def channels_keyboard(self) -> InlineKeyboardMarkup:
-        rows = [[InlineKeyboardButton(f"📢 {channel}", url="https://t.me/{}".format(channel.lstrip("@")))] for channel in settings.required_channels]
+        rows = [
+            [InlineKeyboardButton(f"📢 {channel}", url="https://t.me/{}".format(channel.lstrip("@")))]
+            for channel in settings.required_channels
+        ]
         rows.append([InlineKeyboardButton("✅ من عضو شدم", callback_data="check_join")])
         return InlineKeyboardMarkup(rows)
 
     async def send_channels_required(self, update: Update) -> None:
         await update.effective_message.reply_text(
-            "🚨 ابتدا در کانال‌های ما عضو شوید و سپس جفت‌سازی را شروع کنید.",
+            "🚨 در قدم نخست در کانال‌های ما عضو شوید؛ بعد شمارهٔ واتس‌اپ را بفرستید.",
             reply_markup=self.channels_keyboard(),
         )
+
+    async def send_group_message(self, update: Update) -> None:
+        message = update.effective_message
+        if message is None:
+            return
+        username = ""
+        try:
+            me = await self.application.bot.get_me()
+            username = f"@{me.username}" if me.username else ""
+        except TelegramError:
+            pass
+        text = (
+            "╭━━〔 🛡️ سلام، برای جفت‌سازی به چت خصوصی ربات بروید 〕━━╮\n"
+            "➤ در چت خصوصی /start را بفرستید\n"
+            f"╰━━〔 🚀 START NOW {username} 〕━━╯"
+        )
+        await message.reply_text(text)
 
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         message = update.effective_message
         if message is None:
             return
         if update.effective_chat and update.effective_chat.type in {ChatType.GROUP, ChatType.SUPERGROUP}:
-            await message.reply_text("برای راه‌اندازی واتس‌اپ، در گفت‌وگوی خصوصی ربات از `/pair` استفاده کنید.")
+            await self.send_group_message(update)
             return
-        text = (
+        user_id = update.effective_user.id if update.effective_user else 0
+        if not await self.check_user_joined_channels(user_id, context):
+            await self.send_channels_required(update)
+            return
+        self.user_states[user_id] = "awaiting_number"
+        await message.reply_text(
             f"🪀 {settings.bot_name}\n\n"
-            "فرمان‌های اتصال:\n"
-            "/pair <wa_number> — دریافت کد جفت‌سازی واتس‌اپ\n"
-            "/unpair — قطع اجرای اتصال در ربات\n\n"
-            "تنظیم Green API فقط برای مالک:\n"
-            "/green <instance_id> <api_token>\n\n"
-            "ابتدا یک instance در Green API بسازید؛ سپس شناسه و token آن را در چت خصوصی ربات بفرستید."
+            "🔐 شمارهٔ واتس‌اپ خود را با کد کشور بفرستید.\n"
+            "نمونه: `937xxxxxxxxx`\n\n"
+            "بعد از دریافت شماره، کد جفت‌سازی برای خودتان ارسال می‌شود.",
+            parse_mode="Markdown",
         )
-        await message.reply_text(text)
 
     async def green_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         message = update.effective_message
@@ -138,8 +184,8 @@ class TelegramPairingBot:
         args = self._args(context)
         if len(args) < 2:
             await message.reply_text(
-                "استفاده: `/green <instance_id> <api_token>`\n\n"
-                "شناسه و token را از Green API Console بردارید. این اطلاعات فقط محلی ذخیره می‌شوند و در GitHub ثبت نمی‌گردند.",
+                "استفاده: `/green <instance_id> <api_token>`\n"
+                "این تنظیم فقط توسط مالک انجام می‌شود و در GitHub ذخیره نمی‌گردد.",
                 parse_mode="Markdown",
             )
             return
@@ -150,66 +196,106 @@ class TelegramPairingBot:
             "api_url": settings.green_api_url,
         })
         await message.reply_text(
-            "✅ Green API ذخیره شد. اکنون شمارهٔ واتس‌اپ را بفرستید:\n\n"
-            "`/pair 937xxxxxxxxx`",
+            "✅ اتصال Green API ذخیره شد. اکنون `/start` را بزنید یا شمارهٔ واتس‌اپ را بفرستید.",
             parse_mode="Markdown",
         )
 
-    async def _send_pairing_code(self, update: Update, number: str) -> None:
+    @staticmethod
+    def validate_number(value: str) -> Optional[str]:
+        number = str(value or "").strip().replace("+", "")
+        if not PHONE_RE.fullmatch(number):
+            return None
+        if number.startswith("0") or number[:3] in BLOCKED_COUNTRY_CODES:
+            return None
+        return number
+
+    async def _process_number(self, update: Update, number: str) -> None:
         message = update.effective_message
+        user_id = update.effective_user.id if update.effective_user else 0
+        valid = self.validate_number(number)
+        if valid is None:
+            await message.reply_text(
+                "❌ شماره نادرست است. فقط ۷ تا ۱۵ رقم، با کد کشور و بدون + بفرستید؛ مانند `937xxxxxxxxx`.",
+                parse_mode="Markdown",
+            )
+            self.user_states[user_id] = "awaiting_number"
+            return
+        self.user_states.pop(user_id, None)
+        await message.reply_text("⏳ کد جفت‌سازی در حال ساختن است؛ چند لحظه منتظر بمانید…")
         try:
-            client = await self.pairing.start()
-            code = await client.get_authorization_code(number)
+            code = await self.pairing.request_code(valid)
             display_code = f"{code[:4]}-{code[4:]}" if len(code) == 8 else code
             await message.reply_text(
-                "🔗 کد جفت‌سازی واتس‌اپ:\n\n"
+                "🔗 کد جفت‌سازی واتس‌اپ برای شمارهٔ شما:\n\n"
                 f"`{display_code}`\n\n"
-                "در WhatsApp بروید: Linked devices → Link a device → Link with phone number instead\n"
-                "سپس این کد را وارد کنید. کد حدود ۲ تا ۳ دقیقه اعتبار دارد.",
+                "در WhatsApp بروید:\n"
+                "Linked devices → Link a device → Link with phone number instead\n\n"
+                "کد حدود ۲ تا ۳ دقیقه اعتبار دارد.",
                 parse_mode="Markdown",
             )
         except (RuntimeError, OSError, ValueError) as exc:
-            log.exception("WhatsApp phone pairing failed")
-            await message.reply_text(f"❌ کد جفت‌سازی آماده نشد: {exc}")
+            log.exception("Pairing failed for %s", valid)
+            self.user_states[user_id] = "awaiting_number"
+            await message.reply_text(f"❌ جفت‌سازی انجام نشد: {exc}\nدوباره شماره را بفرستید.")
 
     async def pair_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if update.effective_chat and update.effective_chat.type in {ChatType.GROUP, ChatType.SUPERGROUP}:
-            await update.effective_message.reply_text("لطفاً `/pair` را در چت خصوصی با ربات استفاده کنید.")
+            await self.send_group_message(update)
             return
         user_id = update.effective_user.id if update.effective_user else 0
         if not await self.check_user_joined_channels(user_id, context):
             await self.send_channels_required(update)
             return
-        if not self.is_owner(update):
-            await update.effective_message.reply_text("❌ کد اتصال فقط برای مالک ربات نمایش داده می‌شود.")
-            return
         args = self._args(context)
-        if len(args) != 1 or not args[0].isdigit() or not 7 <= len(args[0]) <= 15:
+        if not args:
+            self.user_states[user_id] = "awaiting_number"
             await update.effective_message.reply_text(
-                "استفاده: `/pair 937xxxxxxxxx`\nشماره را با کد کشور، بدون + و فقط با رقم بفرستید.",
+                "🔐 لطفاً شمارهٔ واتس‌اپ را با کد کشور بفرستید؛ نمونه: `937xxxxxxxxx`.",
                 parse_mode="Markdown",
             )
             return
-        await self._send_pairing_code(update, args[0])
+        await self._process_number(update, args[0])
 
     async def unpair_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if not self.is_owner(update):
-            await update.effective_message.reply_text("❌ این فرمان فقط برای مالک ربات است.")
+        if update.effective_chat and update.effective_chat.type in {ChatType.GROUP, ChatType.SUPERGROUP}:
+            await update.effective_message.reply_text("لطفاً این فرمان را در چت خصوصی بفرستید.")
             return
+        args = self._args(context)
+        if not args:
+            await self.pairing.stop()
+            await update.effective_message.reply_text("✅ اتصال فعال واتس‌اپ متوقف شد.")
+            return
+        number = self.validate_number(args[0])
+        if number is None:
+            await update.effective_message.reply_text("استفاده: `/unpair 937xxxxxxxxx`", parse_mode="Markdown")
+            return
+        folder = settings.pairing_root / f"{number}@s.whatsapp.net"
+        if folder.exists():
+            shutil.rmtree(folder)
         await self.pairing.stop()
-        await update.effective_message.reply_text("✅ polling واتس‌اپ در ربات متوقف شد. برای دریافت کد دوباره `/pair <شماره>` را بفرستید.")
+        await update.effective_message.reply_text(f"✅ نشست جفت‌سازی برای {number} حذف شد.")
 
     async def text_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        return
+        if update.effective_chat is None or update.effective_chat.type != ChatType.PRIVATE:
+            return
+        user_id = update.effective_user.id if update.effective_user else 0
+        text = (update.effective_message.text or "").strip()
+        if self.user_states.get(user_id) != "awaiting_number" or text.startswith("/"):
+            return
+        if not await self.check_user_joined_channels(user_id, context):
+            await self.send_channels_required(update)
+            return
+        await self._process_number(update, text)
 
     async def callback_query(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         query = update.callback_query
         await query.answer()
         if query.data == "check_join":
             if await self.check_user_joined_channels(query.from_user.id, context):
-                await query.message.reply_text("✅ عضویت تأیید شد. مالک ربات می‌تواند `/pair <شماره>` را بفرستد.")
+                self.user_states[query.from_user.id] = "awaiting_number"
+                await query.message.reply_text("✅ عضویت تأیید شد. اکنون شمارهٔ واتس‌اپ خود را بفرستید.")
             else:
-                await query.answer("ابتدا در کانال‌های لازم عضو شوید.", show_alert=True)
+                await query.answer("ابتدا در همهٔ کانال‌های لازم عضو شوید.", show_alert=True)
 
     async def error_handler(self, update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
         log.error("Telegram update error: %s", context.error, exc_info=context.error)
@@ -226,3 +312,7 @@ class TelegramPairingBot:
             await self.application.updater.stop()
             await self.application.stop()
             await self.application.shutdown()
+
+
+if __name__ == "__main__":
+    asyncio.run(TelegramPairingBot().run())

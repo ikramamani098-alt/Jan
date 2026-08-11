@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "jan-main-python"
-version = "1.0.0"
-description = "Python port of the Jan-main WhatsApp and Telegram bot"
+name = "all-amani-python"
+version = "3.0.0"
+description = "Python conversion of the All-amani WhatsApp and Telegram bot"
 requires-python = ">=3.9"
 dependencies = [
   "python-telegram-bot>=21.0,<23",
@@ -22,4 +22,4 @@ target-version = "py39"
 line-length = 120
 
 [tool.ruff.lint]
-ignore = ["UP037", "UP045", "ASYNC230"]
+ignore = ["UP037", "UP045", "ASYNC230", "N999"]

@@ -12,9 +12,14 @@ venv/
 # WhatsApp sessions and credentials
 sessions/*
 !sessions/.gitkeep
+kingbadboitimewisher/pairing/*
+!kingbadboitimewisher/pairing/.gitkeep
 *.session
 creds.json
 pairing.json
+*green_api*.json
 
 # Runtime data
 *.log
+*.tmp
+

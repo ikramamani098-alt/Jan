@@ -56,3 +56,13 @@ def test_ping_command() -> None:
 def test_unknown_command_is_safe() -> None:
     sent = asyncio.run(run_command(".not_a_real_command"))
     assert sent and "ثبت نشده" in sent[0][1]
+
+
+def test_all_amani_pairing_number_validation() -> None:
+    from bot import TelegramPairingBot
+
+    assert TelegramPairingBot.validate_number("93748807162") == "93748807162"
+    assert TelegramPairingBot.validate_number("+93748807162") == "93748807162"
+    assert TelegramPairingBot.validate_number("0") is None
+    assert TelegramPairingBot.validate_number("abc93748807162") is None
+    assert TelegramPairingBot.validate_number("2521234567") is None

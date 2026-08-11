@@ -48,12 +48,12 @@ class Settings:
     )
     required_channels: list[str] = field(
         default_factory=lambda: _csv(
-            os.getenv("REQUIRED_CHANNELS", "@Reyesbahram810,@FARSHAD_CHINAL"),
-            ["@Reyesbahram810", "@FARSHAD_CHINAL"],
+            os.getenv("REQUIRED_CHANNELS", "@Reyesbahram810,@FARSHAD_CHINAL,@Reporter810"),
+            ["@Reyesbahram810", "@FARSHAD_CHINAL", "@Reporter810"],
         )
     )
     pairing_root: Path = field(
-        default_factory=lambda: Path(os.getenv("PAIRING_ROOT", str(ROOT / "sessions" / "pairing")))
+        default_factory=lambda: Path(os.getenv("PAIRING_ROOT", str(ROOT / "kingbadboitimewisher" / "pairing")))
     )
     database_root: Path = field(
         default_factory=lambda: Path(os.getenv("DATABASE_ROOT", str(ROOT / "data" / "database")))
