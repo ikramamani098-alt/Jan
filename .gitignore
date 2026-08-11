@@ -1,5 +1,20 @@
-node_modules/
-tmp/
-sticker/
+# Python bytecode and test/cache files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Local environment and secrets
 .env
+.venv/
+venv/
+
+# WhatsApp sessions and credentials
+sessions/*
+!sessions/.gitkeep
+*.session
+creds.json
+pairing.json
+
+# Runtime data
 *.log

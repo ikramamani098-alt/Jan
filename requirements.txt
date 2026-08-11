@@ -1,5 +1,14 @@
-# how to deploy 
-# // go to panel startup scroll down to star up command 
-# // first and change the npm start with this to install pm2 
-# // add this npm install --legacy-peer-deps 
-# after that change back to npm start and the bot will start running 
+# Core runtime
+neonize>=0.4.3.post0
+python-telegram-bot>=21.0,<23
+httpx>=0.27
+python-dotenv>=1.0
+
+# Optional media helpers used by command extensions
+Pillow>=10.0
+qrcode>=7.4
+yt-dlp>=2025.1.0
+
+# Test/tooling
+pytest>=8.0
+ruff>=0.6

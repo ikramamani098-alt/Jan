@@ -1,6 +1,80 @@
-# AMANI-SAHIB Deployment Guide
-how to deploy 
-// go to panel startup scroll down to star up command 
-// first and change the npm start with this to install pm2 
-// add this npm install --legacy-peer-deps 
-after that change back to npm start and the bot will start running 
+# Jan Main Python Port
+
+این پروژه نسخهٔ Python پروژهٔ `Jan-main` است. ساختار اصلی ربات، شامل سرویس سلامت، ربات تلگرام، مدیریت نشست‌ها، جفت‌سازی واتس‌اپ، فرمان‌های اصلی و کنترل‌های پایهٔ گروهی، به ماژول‌های جداگانه منتقل شده است.
+
+> **نکتهٔ معماری:** کتابخانهٔ اصلی پروژهٔ قبلی یعنی Baileys مخصوص Node.js است. در این نسخه، لایهٔ اتصال واتس‌اپ با Neonize جایگزین شده است. مستندات Neonize API رویدادمحور، `NewClient`، رویدادهای اتصال و پیام، و ارسال پیام را ارائه می‌کند [1]. نسخهٔ منتشرشدهٔ بررسی‌شده در PyPI، `0.4.3.post0` و نیازمند Python 3.10 یا بالاتر است [2].
+
+## ساختار پروژه
+
+| مسیر | نقش |
+|---|---|
+| `main.py` | نقطهٔ ورود، سرور سلامت و راه‌اندازی هم‌زمان سرویس‌ها |
+| `app/config.py` | پیکربندی محیطی و مسیرها |
+| `app/storage.py` | ذخیره‌سازی JSON، نشست‌ها و کد جفت‌سازی |
+| `app/whatsapp.py` | آداپتر Neonize و مدل پیام نرمال‌شده |
+| `app/commands.py` | مسیریابی فرمان‌ها و فرمان‌های اصلی |
+| `app/moderation.py` | کنترل لینک و واژه‌های نامناسب |
+| `app/telegram_bot.py` | فرمان‌های `/start`، `/pair` و `/unpair` |
+| `data/` | داده‌های JSON و پایگاه دادهٔ منتقل‌شده |
+| `media/` | فایل‌های رسانه‌ای پروژهٔ اصلی |
+| `sessions/` | نشست‌های واتس‌اپ |
+
+## نصب
+
+ابتدا Python 3.10 یا بالاتر را نصب کنید. سپس در پوشهٔ پروژه اجرا کنید:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+cp .env.example .env
+```
+
+در فایل `.env` مقدار `BOT_TOKEN` را وارد کنید. توکن تلگرام قبلی عمداً در نسخهٔ Python قرار داده نشده است؛ توکن را فقط در محیط اجرا یا فایل `.env` خصوصی تنظیم کنید.
+
+## اجرا
+
+```bash
+source .venv/bin/activate
+python main.py
+```
+
+برای بررسی سلامت سرویس، آدرس زیر را باز کنید:
+
+```text
+http://127.0.0.1:8080/
+```
+
+اگر `BOT_TOKEN` خالی باشد، سرویس تلگرام اجرا نمی‌شود؛ سرور سلامت و تلاش برای راه‌اندازی واتس‌اپ همچنان انجام می‌شود. برای استفادهٔ واتس‌اپ، Neonize باید به‌درستی نصب شود و اولین اتصال ممکن است به QR/device-login نیاز داشته باشد.
+
+## جفت‌سازی واتس‌اپ
+
+در تلگرام، ابتدا در کانال‌های تعیین‌شده عضو شوید و سپس بفرستید:
+
+```text
+/pair 937xxxxxxxxx
+```
+
+Baileys در پروژهٔ اصلی متد مستقیم `requestPairingCode` داشت. Neonize بسته به نسخه و محیط اجرا ممکن است به‌جای کد متنی، ورود QR/device-login ارائه کند. آداپتر Python این تفاوت را پنهان نمی‌کند و در صورت نبودن متد کد، پیام روشنی دربارهٔ اسکن QR در محیط اجرا نشان می‌دهد. این محدودیت به تفاوت API دو کتابخانه مربوط است، نه خطای فرمان Telegram.
+
+برای حذف نشست:
+
+```text
+/unpair 937xxxxxxxxx
+```
+
+## فرمان‌های اصلی منتقل‌شده
+
+فرمان‌های پایه شامل `ping`، `alive`، `menu`، `runtime`، `owner`، `id`، `settings`، `on`، `off`، `antilink`، `antibadword`، `antibot`، `antidelete`، `autoreply`، `autoread`، `autotyping`، `autorecording`، `autoviewstatus`، `autolikestatus`، `autobio` و `admincheck` است. ساختار `CommandRouter` طوری نوشته شده است که فرمان‌های رسانه‌ای و APIمحور بعدی را بدون تغییر در اتصال واتس‌اپ اضافه کنید.
+
+## تفاوت‌های مهم با نسخهٔ Node.js
+
+نسخهٔ اصلی بیش از صد فرمان متکی به scraping، دانلود رسانه، APIهای بیرونی و متدهای خصوصی Baileys داشت. این قابلیت‌ها را نمی‌توان فقط با ترجمهٔ نحوی JavaScript به Python حفظ کرد؛ برای هر مورد باید یک جایگزین Python یا API رسمی تنظیم شود. بنابراین نسخهٔ حاضر هستهٔ اجرایی و فرمان‌های پایدار را منتقل کرده و قابلیت‌های Node-only را به‌صورت آداپتر و نقطهٔ توسعه جدا کرده است.
+
+همچنین در نسخهٔ Python، توکن‌ها و شناسه‌های حساس از کد خارج شده‌اند. قبل از استقرار عمومی، مقدارهای `.env`، مجوزهای نشست‌ها و دسترسی کانال‌های Telegram را بررسی کنید.
+
+## منابع
+
+[1]: https://github.com/krypton-byte/neonize "Neonize official GitHub repository"
+[2]: https://pypi.org/project/neonize/ "Neonize package on PyPI"
