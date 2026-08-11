@@ -11,8 +11,8 @@ from typing import Any
 from app.commands import BotState, install_router
 from app.config import settings
 from app.moderation import Moderation
-from app.telegram_bot import TelegramPairingBot
 from app.whatsapp import WhatsAppClientAdapter
+from bot import TelegramPairingBot
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper(), logging.INFO),

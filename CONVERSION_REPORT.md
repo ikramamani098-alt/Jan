@@ -7,8 +7,8 @@
 | بخش نسخهٔ اصلی | معادل Python |
 |---|---|
 | `index.js` | `main.py` |
-| `bot.js` | `app/telegram_bot.py` |
-| `pair.js` و `autoload.js` | `PairingService` در `app/telegram_bot.py` و `SessionManager` در `app/storage.py` |
+| `bot.js` | `bot.py` |
+| `pair.js` و `autoload.js` | `PairingService` در `bot.py` و `SessionManager` در `app/storage.py` |
 | `drenox.js` | `app/whatsapp.py`، `app/commands.py` و `app/moderation.py` |
 | `Settings.js` و `setting/config.js` | `app/config.py` و `app/storage.py` |
 | JSONهای `database/` | `data/database/` |

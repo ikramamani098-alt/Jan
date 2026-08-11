@@ -14,7 +14,7 @@
 | `app/whatsapp.py` | آداپتر Neonize و مدل پیام نرمال‌شده |
 | `app/commands.py` | مسیریابی فرمان‌ها و فرمان‌های اصلی |
 | `app/moderation.py` | کنترل لینک و واژه‌های نامناسب |
-| `app/telegram_bot.py` | فرمان‌های `/start`، `/pair` و `/unpair` |
+| `bot.py` | فرمان‌های `/start`، `/pair` و `/unpair` |
 | `data/` | داده‌های JSON و پایگاه دادهٔ منتقل‌شده |
 | `media/` | فایل‌های رسانه‌ای پروژهٔ اصلی |
 | `sessions/` | نشست‌های واتس‌اپ |
