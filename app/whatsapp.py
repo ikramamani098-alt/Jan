@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import base64
 import inspect
 import logging
 from collections.abc import Awaitable, Callable
@@ -116,7 +115,7 @@ class WhatsAppClientAdapter:
         if not instance_id or not token:
             raise RuntimeError(
                 "Green API is not configured. In Telegram, the owner must use "
-                "/green <instance_id> <api_token>, then scan the QR code with WhatsApp."
+                "/green <instance_id> <api_token>, then /pair <phone_number> to receive a pairing code."
             )
         return api_url.rstrip("/"), instance_id, token
 
@@ -162,16 +161,24 @@ class WhatsAppClientAdapter:
         response.raise_for_status()
         return response.json()
 
-    async def get_qr_image(self) -> Optional[bytes]:
-        response = await (await self._client()).get(self._endpoint("qr"))
+    async def get_authorization_code(self, phone_number: str) -> str:
+        """Request the eight-character WhatsApp phone-linking code from Green API."""
+        digits = "".join(character for character in str(phone_number) if character.isdigit())
+        if not 7 <= len(digits) <= 15:
+            raise ValueError("Phone number must contain 7 to 15 digits in international format")
+        response = await (await self._client()).post(
+            self._endpoint("getAuthorizationCode"),
+            json={"phoneNumber": int(digits)},
+        )
         response.raise_for_status()
         payload = response.json()
-        if payload.get("type") == "qrCode" and payload.get("message"):
-            return base64.b64decode(payload["message"])
-        if payload.get("type") == "alreadyLogged":
-            self.connected = True
-            return None
-        raise RuntimeError(str(payload.get("message") or "Green API could not produce a QR code"))
+        code = payload.get("code")
+        if payload.get("status") is True and code:
+            return str(code)
+        raise RuntimeError(
+            str(payload.get("message") or "Green API could not issue a pairing code. "
+                "Ensure the instance is not already authorized.")
+        )
 
     async def get_instance_state(self) -> str:
         response = await (await self._client()).get(self._endpoint("getStateInstance"))

@@ -38,3 +38,33 @@ def test_normalize_incoming_text_notification() -> None:
 
 def test_ignore_non_message_notification() -> None:
     assert normalize_green_notification({"body": {"typeWebhook": "stateInstanceChanged"}}, FakeClient()) is None
+
+
+def test_get_authorization_code(monkeypatch) -> None:
+    import asyncio
+    import json
+
+    import httpx
+
+    from app.config import settings
+    from app.whatsapp import WhatsAppClientAdapter
+
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        assert request.method == "POST"
+        assert "getAuthorizationCode" in str(request.url)
+        assert json.loads(request.content) == {"phoneNumber": 93700123456}
+        return httpx.Response(200, json={"status": True, "code": "TEAM810F"})
+
+    async def run() -> None:
+        monkeypatch.setattr(settings, "green_api_instance_id", "110100")
+        monkeypatch.setattr(settings, "green_api_token", "test-token")
+        adapter = WhatsAppClientAdapter()
+        adapter._http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        assert await adapter.get_authorization_code("93700123456") == "TEAM810F"
+        await adapter.stop()
+
+    asyncio.run(run())
+    assert calls

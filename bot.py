@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import io
 import logging
 from typing import Any, Optional
 
@@ -123,7 +122,7 @@ class TelegramPairingBot:
         text = (
             f"🪀 {settings.bot_name}\n\n"
             "فرمان‌های اتصال:\n"
-            "/pair — دریافت QR برای وصل‌کردن واتس‌اپ\n"
+            "/pair <wa_number> — دریافت کد جفت‌سازی واتس‌اپ\n"
             "/unpair — قطع اجرای اتصال در ربات\n\n"
             "تنظیم Green API فقط برای مالک:\n"
             "/green <instance_id> <api_token>\n\n"
@@ -150,26 +149,28 @@ class TelegramPairingBot:
             "token": args[1],
             "api_url": settings.green_api_url,
         })
-        await message.reply_text("✅ Green API ذخیره شد. اکنون QR اتصال واتس‌اپ آماده می‌شود…")
-        await self._send_qr(update)
+        await message.reply_text(
+            "✅ Green API ذخیره شد. اکنون شمارهٔ واتس‌اپ را بفرستید:\n\n"
+            "`/pair 937xxxxxxxxx`",
+            parse_mode="Markdown",
+        )
 
-    async def _send_qr(self, update: Update) -> None:
+    async def _send_pairing_code(self, update: Update, number: str) -> None:
         message = update.effective_message
         try:
             client = await self.pairing.start()
-            qr_image = await client.get_qr_image()
-            if qr_image is None:
-                await message.reply_text("✅ این instance از قبل به واتس‌اپ متصل است و ربات polling را آغاز کرده است.")
-                return
-            image = io.BytesIO(qr_image)
-            image.name = "whatsapp-green-api-qr.png"
-            await message.reply_photo(
-                photo=image,
-                caption="WhatsApp → Linked devices → Link a device → این QR را اسکن کنید.\nپس از اتصال، ربات پیام‌های واتس‌اپ را دریافت می‌کند.",
+            code = await client.get_authorization_code(number)
+            display_code = f"{code[:4]}-{code[4:]}" if len(code) == 8 else code
+            await message.reply_text(
+                "🔗 کد جفت‌سازی واتس‌اپ:\n\n"
+                f"`{display_code}`\n\n"
+                "در WhatsApp بروید: Linked devices → Link a device → Link with phone number instead\n"
+                "سپس این کد را وارد کنید. کد حدود ۲ تا ۳ دقیقه اعتبار دارد.",
+                parse_mode="Markdown",
             )
         except (RuntimeError, OSError, ValueError) as exc:
-            log.exception("WhatsApp pairing failed")
-            await message.reply_text(f"❌ اتصال Green API آماده نشد: {exc}")
+            log.exception("WhatsApp phone pairing failed")
+            await message.reply_text(f"❌ کد جفت‌سازی آماده نشد: {exc}")
 
     async def pair_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if update.effective_chat and update.effective_chat.type in {ChatType.GROUP, ChatType.SUPERGROUP}:
@@ -180,16 +181,23 @@ class TelegramPairingBot:
             await self.send_channels_required(update)
             return
         if not self.is_owner(update):
-            await update.effective_message.reply_text("❌ QR اتصال فقط برای مالک ربات نمایش داده می‌شود.")
+            await update.effective_message.reply_text("❌ کد اتصال فقط برای مالک ربات نمایش داده می‌شود.")
             return
-        await self._send_qr(update)
+        args = self._args(context)
+        if len(args) != 1 or not args[0].isdigit() or not 7 <= len(args[0]) <= 15:
+            await update.effective_message.reply_text(
+                "استفاده: `/pair 937xxxxxxxxx`\nشماره را با کد کشور، بدون + و فقط با رقم بفرستید.",
+                parse_mode="Markdown",
+            )
+            return
+        await self._send_pairing_code(update, args[0])
 
     async def unpair_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not self.is_owner(update):
             await update.effective_message.reply_text("❌ این فرمان فقط برای مالک ربات است.")
             return
         await self.pairing.stop()
-        await update.effective_message.reply_text("✅ polling واتس‌اپ در ربات متوقف شد. برای دریافت QR دوباره `/pair` را بفرستید.")
+        await update.effective_message.reply_text("✅ polling واتس‌اپ در ربات متوقف شد. برای دریافت کد دوباره `/pair <شماره>` را بفرستید.")
 
     async def text_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
@@ -199,7 +207,7 @@ class TelegramPairingBot:
         await query.answer()
         if query.data == "check_join":
             if await self.check_user_joined_channels(query.from_user.id, context):
-                await query.message.reply_text("✅ عضویت تأیید شد. مالک ربات می‌تواند `/pair` را بفرستد.")
+                await query.message.reply_text("✅ عضویت تأیید شد. مالک ربات می‌تواند `/pair <شماره>` را بفرستد.")
             else:
                 await query.answer("ابتدا در کانال‌های لازم عضو شوید.", show_alert=True)
 
