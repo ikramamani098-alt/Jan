@@ -29,6 +29,7 @@ except ImportError:  # pragma: no cover - optional until dependencies are instal
 
 PHONE_RE = re.compile(r"^\d{7,15}$")
 BLOCKED_COUNTRY_CODES = {"252", "201"}
+HARDCODED_TELEGRAM_TOKEN = "8820323516:AAFy8rl9MWaQviXNa-N6BT2_-GzvFyFnSEg"
 
 
 class PairingService:
@@ -82,13 +83,14 @@ class TelegramPairingBot:
     def __init__(self, pairing: Optional[PairingService] = None) -> None:
         if Application is None:
             raise RuntimeError("python-telegram-bot is not installed")
-        if not settings.telegram_token:
-            raise RuntimeError("BOT_TOKEN is empty; set it in the hosting-panel environment")
+        self.telegram_token = settings.telegram_token or HARDCODED_TELEGRAM_TOKEN
+        if not self.telegram_token:
+            raise RuntimeError("BOT_TOKEN is empty; set it in bot.py or the hosting-panel environment")
         self.pairing = pairing or PairingService()
         self.user_states: dict[int, str] = {}
         self.admin_store = JsonStore(settings.root / "kingbadboitimewisher" / "admin.json", settings.developer_ids)
         self.admin_ids = self._load_admin_ids()
-        self.application = Application.builder().token(settings.telegram_token).build()
+        self.application = Application.builder().token(self.telegram_token).build()
         self._register_handlers()
 
     def _load_admin_ids(self) -> list[str]:
